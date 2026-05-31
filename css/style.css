@@ -1,0 +1,81 @@
+/* ===========================================================
+ * LabGraph — 커스텀 스타일 & 논문 프리셋 테마
+ * Tailwind(CDN) 외의 보조 스타일을 정의합니다.
+ * =========================================================== */
+
+:root {
+  --ink: #1a1a1a;
+  --paper: #fafaf9;
+}
+
+body { background-color: var(--paper); }
+
+/* ---- 상단 탭 인디케이터 ---- */
+.tab {
+  position: relative;
+  color: #78716c;
+  border-bottom: 2px solid transparent;
+  transition: color .18s ease, border-color .18s ease;
+}
+.tab:hover { color: #1a1a1a; }
+.tab-active { color: #1a1a1a; border-bottom-color: #1a1a1a; font-weight: 500; }
+
+/* ---- 패널 전환 애니메이션 ---- */
+.panel-enter { animation: panelEnter .28s ease both; }
+@keyframes panelEnter {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ---- 사이드바 섹션 라벨 ---- */
+.section-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: .68rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: #a8a29e;
+}
+
+/* ---- 폼 컨트롤 ---- */
+.field-label { font-size: .7rem; color: #78716c; }
+.field-input {
+  margin-top: .25rem;
+  width: 100%;
+  font-size: .875rem;
+  padding: .375rem .625rem;
+  background: #fafaf9;
+  border: 1px solid #e7e5e4;
+  border-radius: .375rem;
+  transition: border-color .15s ease, background .15s ease;
+}
+.field-input:focus { outline: none; border-color: #a8a29e; background: #fff; }
+
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+input[type=number] { -moz-appearance: textfield; }
+
+/* ---- 스크롤바 ---- */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: #d6d3d1; border-radius: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* ---- 차트 컨테이너: 캔버스가 부모를 꽉 채움(고정 높이 기반, 숨김 탭 안정) ---- */
+.chart-box { position: relative; width: 100%; }
+.chart-box > canvas { position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; }
+
+/* ===========================================================
+ * 논문 스타일 프리셋 — 본문/제목 폰트 톤
+ * (Chart.js 옵션은 JS에서 갱신, 여기서는 페이지 톤만)
+ * =========================================================== */
+body.theme-report { /* 기본 모던 (학부 레포트) */
+  --plot-font: '"IBM Plex Sans KR", "IBM Plex Sans", "Apple SD Gothic Neo", sans-serif';
+}
+body.theme-nature {
+  --plot-font: '"Spectral", "Times New Roman", serif';
+}
+body.theme-ieee {
+  --plot-font: 'Helvetica, Arial, sans-serif';
+}
+
+/* 프리셋 선택 칩 활성 표시 */
+.preset-chip.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }

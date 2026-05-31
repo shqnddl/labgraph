@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LabGraph · 대학 실험용 그래프 생성기</title>
+
+  <!-- 외부 라이브러리 (CDN) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- PDF 내보내기 -->
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Spectral:wght@500;600&family=IBM+Plex+Sans+KR:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="css/style.css" />
+
+  <script>
+    tailwind.config = {
+      theme: { extend: {
+        fontFamily: {
+          serif: ['Spectral', 'serif'],
+          sans: ['"IBM Plex Sans KR"', 'sans-serif'],
+          mono: ['"IBM Plex Mono"', 'monospace'],
+        },
+        colors: { ink: '#1a1a1a', paper: '#fafaf9' },
+      } },
+    };
+  </script>
+</head>
+
+<body class="font-sans text-ink antialiased theme-report">
+  <!-- ===== 상단 내비게이션 ===== -->
+  <header class="sticky top-0 z-30 bg-paper/90 backdrop-blur border-b border-stone-200">
+    <div class="max-w-[1400px] mx-auto px-6">
+      <div class="flex items-center justify-between h-16">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-md bg-ink text-white grid place-items-center"><i data-lucide="line-chart" class="w-5 h-5"></i></div>
+          <div class="leading-tight">
+            <h1 class="font-serif text-lg font-semibold tracking-tight">LabGraph</h1>
+            <p class="font-mono text-[0.6rem] tracking-widest text-stone-400 uppercase">Experiment Plotter</p>
+          </div>
+        </div>
+        <nav class="flex items-stretch h-full gap-1" role="tablist" aria-label="그래프 종류">
+          <button class="tab flex items-center gap-2 px-4 text-sm" role="tab" data-tab="custom"><i data-lucide="sliders-horizontal" class="w-4 h-4"></i> 커스텀</button>
+          <button class="tab flex items-center gap-2 px-4 text-sm" role="tab" data-tab="motion"><i data-lucide="trending-up" class="w-4 h-4"></i> 운동 그래프</button>
+          <button class="tab flex items-center gap-2 px-4 text-sm" role="tab" data-tab="titration"><i data-lucide="flask-conical" class="w-4 h-4"></i> 산-염기 적정</button>
+          <button class="tab flex items-center gap-2 px-4 text-sm" role="tab" data-tab="vi"><i data-lucide="zap" class="w-4 h-4"></i> V-I 그래프</button>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===== 본문 ===== -->
+  <div class="max-w-[1400px] mx-auto px-6 py-6">
+    <div class="flex gap-6 items-start">
+
+      <!-- 좌측 사이드바 -->
+      <aside class="w-[340px] shrink-0 space-y-4">
+        <!-- 논문 스타일 프리셋 -->
+        <div class="bg-white border border-stone-200 rounded-lg">
+          <div class="px-5 py-3 border-b border-stone-100 flex items-center gap-2"><i data-lucide="palette" class="w-4 h-4 text-stone-500"></i><h2 class="text-sm font-medium">그래프 스타일 프리셋</h2></div>
+          <div class="p-4 flex gap-2">
+            <button data-preset-style="report" class="preset-chip flex-1 px-2 py-1.5 text-xs border border-stone-200 rounded-md transition">학부 레포트</button>
+            <button data-preset-style="nature" class="preset-chip flex-1 px-2 py-1.5 text-xs border border-stone-200 rounded-md transition">Nature</button>
+            <button data-preset-style="ieee" class="preset-chip flex-1 px-2 py-1.5 text-xs border border-stone-200 rounded-md transition">IEEE</button>
+          </div>
+        </div>
+
+        <div class="bg-white border border-stone-200 rounded-lg">
+          <div class="px-5 py-4 border-b border-stone-100 flex items-center gap-2"><i data-lucide="settings-2" class="w-4 h-4 text-stone-500"></i><h2 class="text-sm font-medium">설정</h2></div>
+          <div class="p-5">
+
+            <!-- 커스텀 -->
+            <section data-panel-sidebar="custom" class="space-y-4">
+              <p class="section-label">커스텀</p>
+              <label class="block"><span class="field-label">자주 쓰는 그래프 프리셋</span>
+                <select id="cu-preset" class="field-input">
+                  <option value="custom">직접 입력 (Custom)</option>
+                  <option value="linear">선형 관계 (y = ax + b)</option>
+                  <option value="quadratic">이차함수 곡선 (y = ax²)</option>
+                  <option value="exponential">지수 성장 곡선</option>
+                  <option value="logdecay">로그 감쇄 곡선</option>
+                </select></label>
+              <label class="block"><span class="field-label">그래프 제목</span><input type="text" id="cu-title" class="field-input" placeholder="(선택)"></label>
+              <label class="block"><span class="field-label">그래프 종류</span>
+                <select id="cu-type" class="field-input">
+                  <option value="line">선 (Line)</option>
+                  <option value="scatter">산점도 (Scatter)</option>
+                  <option value="bar">막대 (Bar)</option>
+                </select></label>
+              <div class="grid grid-cols-2 gap-2">
+                <label class="block"><span class="field-label">X축 이름</span><input type="text" id="cu-xname" class="field-input" value="시간"></label>
+                <label class="block"><span class="field-label">X 단위</span><input type="text" id="cu-xunit" class="field-input" value="s"></label>
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <label class="block"><span class="field-label">Y축 이름</span><input type="text" id="cu-yname" class="field-input" value="전압"></label>
+                <label class="block"><span class="field-label">Y 단위</span><input type="text" id="cu-yunit" class="field-input" value="V"></label>
+              </div>
+
+              <!-- 추세선 -->
+              <div class="border border-stone-200 rounded-md p-3 space-y-2 bg-stone-50/40">
+                <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="cu-fit-on" class="accent-stone-800"> 추세선(회귀) 표시</label>
+                <select id="cu-fit" class="field-input">
+                  <option value="linear">선형 y = ax + b</option>
+                  <option value="quadratic">2차 y = ax² + bx + c</option>
+                  <option value="exponential">지수 y = ae^(bx)</option>
+                  <option value="logarithmic">로그 y = a·ln(x) + b</option>
+                </select>
+                <p class="text-[0.7rem] text-stone-400">첫 번째 계열 기준으로 회귀하여 수식·R²를 표시합니다.</p>
+              </div>
+
+              <!-- 오차막대 -->
+              <div class="border border-stone-200 rounded-md p-3 space-y-2 bg-stone-50/40">
+                <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="cu-errbar" class="accent-stone-800"> 오차막대 표시 (±)</label>
+                <select id="cu-errmode" class="field-input">
+                  <option value="sd">계열 표준편차(SD) 기준</option>
+                  <option value="column">마지막 열을 오차값으로 사용 (X, Y, err)</option>
+                </select>
+              </div>
+
+              <div>
+                <span class="field-label">데이터 붙여넣기 (Tab / 콤마 구분)</span>
+                <textarea id="cu-data" rows="10" spellcheck="false" placeholder="X값, 계열1, 계열2, 계열3 …&#10;엑셀/구글시트에서 셀 영역을 복사해 그대로 붙여넣으세요." class="field-input font-mono text-xs leading-relaxed">x, 계열 A, 계열 B
+0, 1.2, 0.4
+1, 2.5, 0.9
+2, 3.1, 1.7
+3, 4.0, 2.2
+4, 4.6, 3.1
+5, 5.2, 3.8</textarea>
+                <button id="cu-apply" class="mt-2 w-full flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs text-white bg-ink rounded-md hover:bg-stone-800 transition"><i data-lucide="clipboard-paste" class="w-3.5 h-3.5"></i> 데이터 적용</button>
+                <p class="text-[0.7rem] text-stone-400 mt-1.5 leading-relaxed"><span class="text-stone-500 font-medium">다중 계열 지원:</span> 첫 열은 X축, 두 번째 열부터는 계열을 추가할수록 여러 선이 동시에 그려집니다. 엑셀에서 복사(Ctrl+C) 후 붙여넣기(Ctrl+V)하면 탭 구조가 자동 인식됩니다.</p>
+              </div>
+            </section>
+
+            <!-- 운동 그래프 -->
+            <section data-panel-sidebar="motion" class="space-y-3 hidden">
+              <div>
+                <p class="section-label">운동 그래프</p>
+                <p class="text-sm text-stone-500 leading-relaxed mt-2">구간을 추가하고 각 구간의 운동 상태와 값을 설정하세요. 변경 즉시 우측 그래프에 반영됩니다.</p>
+              </div>
+              <button id="motion-preset" class="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-sm text-stone-700 border border-stone-300 rounded-md hover:bg-stone-50 transition"><i data-lucide="sparkles" class="w-4 h-4"></i> 포물선 운동 프리셋 적용</button>
+              <div id="segment-list" class="space-y-3 max-h-[450px] overflow-y-auto pr-1 pb-1"></div>
+              <button id="add-segment" class="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-sm text-stone-700 border border-dashed border-stone-300 rounded-md hover:border-stone-400 hover:bg-stone-50 transition"><i data-lucide="plus" class="w-4 h-4"></i> 구간 추가</button>
+            </section>
+
+            <!-- 산-염기 적정 -->
+            <section data-panel-sidebar="titration" class="space-y-4 hidden">
+              <p class="section-label">산-염기 적정</p>
+              <div class="inline-flex w-full bg-stone-100 rounded-md p-0.5 text-xs">
+                <button data-mode="sim" class="titr-mode flex-1 px-2 py-1.5 rounded transition">이론값 시뮬레이션</button>
+                <button data-mode="exp" class="titr-mode flex-1 px-2 py-1.5 rounded transition">실험값 입력</button>
+              </div>
+              <div id="sim-panel"><div id="sim-inputs" class="space-y-4"></div></div>
+              <div id="exp-panel" class="space-y-3 hidden">
+                <div>
+                  <span class="field-label">CSV 붙여넣기 (부피, pH)</span>
+                  <textarea id="csv-input" rows="4" class="field-input font-mono text-xs leading-relaxed" placeholder="0, 2.85&#10;5, 4.14&#10;25, 8.72&#10;..."></textarea>
+                  <button id="csv-apply" class="mt-2 w-full flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs text-white bg-ink rounded-md hover:bg-stone-800 transition"><i data-lucide="clipboard-paste" class="w-3.5 h-3.5"></i> 데이터 적용</button>
+                </div>
+                <div>
+                  <div class="flex items-center justify-between mb-1"><span class="field-label">측정 데이터</span><button id="add-row" class="text-xs text-stone-500 hover:text-ink flex items-center gap-1"><i data-lucide="plus" class="w-3 h-3"></i> 행 추가</button></div>
+                  <div id="exp-table" class="space-y-1.5"></div>
+                </div>
+              </div>
+            </section>
+
+            <!-- V-I -->
+            <section data-panel-sidebar="vi" class="space-y-4 hidden">
+              <p class="section-label">V-I 그래프</p>
+              <div class="inline-flex w-full bg-stone-100 rounded-md p-0.5 text-xs">
+                <button data-preset="resistor" class="vi-preset flex-1 px-2 py-1.5 rounded transition">저항 (Linear)</button>
+                <button data-preset="diode" class="vi-preset flex-1 px-2 py-1.5 rounded transition">다이오드 (Exp.)</button>
+              </div>
+              <p id="vi-desc" class="text-sm text-stone-500 leading-relaxed"></p>
+              <div id="vi-fit-wrap">
+                <span class="field-label">회귀 모델</span>
+                <select id="vi-fit" class="field-input">
+                  <option value="linear">선형 y = ax + b</option>
+                  <option value="quadratic">2차 y = ax² + bx + c</option>
+                  <option value="exponential">지수 y = ae^(bx)</option>
+                  <option value="logarithmic">로그 y = a·ln(x) + b</option>
+                </select>
+              </div>
+              <div>
+                <div class="flex items-center justify-between mb-1"><span class="field-label">측정 데이터 (V, I[mA])</span><button id="vi-add-row" class="text-xs text-stone-500 hover:text-ink flex items-center gap-1"><i data-lucide="plus" class="w-3 h-3"></i> 행 추가</button></div>
+                <div id="vi-table" class="space-y-1.5"></div>
+              </div>
+              <div>
+                <span class="field-label">CSV 붙여넣기 (전압, 전류[mA])</span>
+                <textarea id="vi-csv" rows="3" class="field-input font-mono text-xs leading-relaxed" placeholder="0, 0.2&#10;1, 6.5&#10;2, 13.6&#10;..."></textarea>
+                <button id="vi-csv-apply" class="mt-2 w-full flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs text-white bg-ink rounded-md hover:bg-stone-800 transition"><i data-lucide="clipboard-paste" class="w-3.5 h-3.5"></i> 데이터 적용</button>
+              </div>
+            </section>
+
+          </div>
+        </div>
+      </aside>
+
+      <!-- 우측 메인 -->
+      <main class="flex-1 min-w-0">
+        <div class="bg-white border border-stone-200 rounded-lg">
+          <div class="px-6 py-4 border-b border-stone-100 flex items-center justify-between">
+            <div>
+              <h2 id="main-title" class="font-serif text-base font-semibold">커스텀</h2>
+              <p id="main-subtitle" class="text-xs text-stone-400 mt-0.5">사용자 정의 데이터 시각화</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button id="btn-reset" class="flex items-center gap-1.5 px-3 py-1.5 text-xs text-stone-600 border border-stone-200 rounded-md hover:bg-stone-50 transition"><i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> 초기화</button>
+              <button id="btn-download" class="flex items-center gap-1.5 px-3 py-1.5 text-xs text-white bg-ink rounded-md hover:bg-stone-800 transition"><i data-lucide="download" class="w-3.5 h-3.5"></i> 그래프 다운로드</button>
+            </div>
+          </div>
+
+          <div class="p-6">
+            <!-- 커스텀 -->
+            <section data-panel-main="custom" class="relative">
+              <div class="flex items-baseline justify-between mb-1.5"><h3 id="cu-heading" class="text-sm font-medium">커스텀 그래프</h3><span class="text-[0.7rem] text-stone-400">축 이름·단위는 입력 즉시 반영됩니다</span></div>
+              <div class="chart-box h-[400px]">
+                <canvas id="chart-custom-main"></canvas>
+                <div id="cu-fitbox" class="hidden absolute top-3 right-3 bg-white/95 backdrop-blur border border-stone-200 rounded-md px-3 py-2 shadow-sm"></div>
+              </div>
+            </section>
+
+            <!-- 운동 -->
+            <section data-panel-main="motion" class="relative hidden">
+              <div class="space-y-5">
+                <div><div class="flex items-baseline justify-between mb-1.5"><h3 class="text-sm font-medium">변위 <span class="font-mono text-stone-500">s–t</span></h3><span class="text-[0.7rem] text-stone-400">단위: m</span></div><div class="chart-box h-[200px]"><canvas id="chart-st"></canvas></div></div>
+                <div><div class="flex items-baseline justify-between mb-1.5"><h3 class="text-sm font-medium">속도 <span class="font-mono text-stone-500">v–t</span></h3><span class="text-[0.7rem] text-stone-400">단위: m/s</span></div><div class="chart-box h-[200px]"><canvas id="chart-vt"></canvas></div></div>
+                <div><div class="flex items-baseline justify-between mb-1.5"><h3 class="text-sm font-medium">가속도 <span class="font-mono text-stone-500">a–t</span></h3><span class="text-[0.7rem] text-stone-400">단위: m/s²</span></div><div class="chart-box h-[200px]"><canvas id="chart-at"></canvas></div></div>
+                <div class="pt-2 border-t border-stone-100">
+                  <div class="flex items-baseline justify-between mb-1.5"><h3 class="text-sm font-medium">2차원 운동 궤적 평면 <span class="font-mono text-stone-500">y–x</span></h3><span class="text-[0.7rem] text-stone-400">단위: m · x: 수평 · y: 수직</span></div>
+                  <div class="flex items-center gap-2 mb-2"><label class="field-label whitespace-nowrap">수평 초기속도 v<sub>x0</sub> (m/s)</label><input type="number" step="0.1" id="motion-vx0" value="5" class="field-input !mt-0 w-28"><span class="text-[0.7rem] text-stone-400">수평 방향은 등속으로 가정합니다.</span></div>
+                  <div class="chart-box h-[360px]"><canvas id="chart-yx"></canvas></div>
+                </div>
+              </div>
+              <div class="mt-4 pt-3 border-t border-stone-100 flex items-center gap-4 text-[0.7rem] text-stone-400">
+                <span class="inline-flex items-center gap-1.5"><span class="inline-block w-2.5 h-2.5 rounded-full border border-stone-500 bg-white"></span> 미포함값 (좌극한)</span>
+                <span class="inline-flex items-center gap-1.5"><span class="inline-block w-2.5 h-2.5 rounded-full bg-stone-700"></span> 도달값 (불연속점)</span>
+              </div>
+            </section>
+
+            <!-- 적정 -->
+            <section data-panel-main="titration" class="relative hidden">
+              <div>
+                <div class="flex items-baseline justify-between mb-1.5"><h3 class="text-sm font-medium">적정 곡선 <span class="font-mono text-stone-500">pH–V</span></h3><span class="text-[0.7rem] text-stone-400">x: 적정액 부피 (mL) · y: pH</span></div>
+                <div class="chart-box h-[360px]"><canvas id="chart-ph"></canvas></div>
+              </div>
+              <div class="flex items-center justify-between mt-4 pt-3 border-t border-stone-100">
+                <div class="flex items-center gap-2"><i data-lucide="activity" class="w-4 h-4 text-stone-500"></i><span class="text-sm">1차 미분 그래프 <span class="font-mono text-stone-500">d(pH)/dV</span></span></div>
+                <button id="deriv-toggle" role="switch" aria-checked="false" class="relative w-10 h-5 rounded-full bg-stone-200 transition-colors"><span class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform"></span></button>
+              </div>
+              <div id="deriv-wrap" class="hidden mt-3">
+                <div class="flex items-baseline justify-between mb-1.5"><h3 class="text-sm font-medium">1차 미분 <span class="font-mono text-stone-500">d(pH)/dV</span></h3></div>
+                <div class="chart-box h-[240px]"><canvas id="chart-deriv"></canvas></div>
+              </div>
+              <div id="titr-summary" class="mt-4"></div>
+            </section>
+
+            <!-- V-I -->
+            <section data-panel-main="vi" class="relative hidden">
+              <div class="flex items-baseline justify-between mb-1.5"><h3 class="text-sm font-medium">V–I 특성 곡선</h3><span class="text-[0.7rem] text-stone-400">x: 전압 V (V) · y: 전류 I (mA)</span></div>
+              <div class="chart-box h-[380px]">
+                <canvas id="chart-vi-main"></canvas>
+                <div id="vi-box" class="absolute top-3 right-3 bg-white/95 backdrop-blur border border-stone-200 rounded-md px-3 py-2 shadow-sm"></div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </main>
+
+    </div>
+  </div>
+
+  <!-- 다운로드 모달 -->
+  <div id="dl-overlay" class="hidden fixed inset-0 z-50 items-center justify-center bg-black/30 backdrop-blur-sm">
+    <div class="bg-white border border-stone-200 rounded-lg shadow-xl w-[400px] max-w-[90vw] overflow-hidden">
+      <div class="px-5 py-4 border-b border-stone-100 flex items-center gap-2"><i data-lucide="download" class="w-4 h-4 text-stone-500"></i><h3 class="text-sm font-medium">그래프 저장</h3></div>
+      <div class="p-5 space-y-4">
+        <label class="block"><span class="field-label">파일 이름</span>
+          <input type="text" id="dl-filename" class="field-input" placeholder="graph"></label>
+        <div>
+          <span class="field-label">형식</span>
+          <div class="flex gap-2 mt-1">
+            <button data-fmt="png" class="preset-chip flex-1 px-2 py-1.5 text-xs border border-stone-200 rounded-md transition">PNG (고해상도)</button>
+            <button data-fmt="svg" class="preset-chip flex-1 px-2 py-1.5 text-xs border border-stone-200 rounded-md transition">SVG (벡터)</button>
+            <button data-fmt="pdf" class="preset-chip flex-1 px-2 py-1.5 text-xs border border-stone-200 rounded-md transition">PDF</button>
+          </div>
+        </div>
+      </div>
+      <div class="px-5 py-3 border-t border-stone-100 flex items-center justify-end gap-2">
+        <button id="dl-cancel" class="px-3 py-1.5 text-xs text-stone-600 border border-stone-200 rounded-md hover:bg-stone-50 transition">취소</button>
+        <button id="dl-ok" class="flex items-center gap-1.5 px-3 py-1.5 text-xs text-white bg-ink rounded-md hover:bg-stone-800 transition"><i data-lucide="download" class="w-3.5 h-3.5"></i> 저장</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 모듈 스크립트 (순서 중요: main 먼저 네임스페이스 → 모듈 → main이 DOMContentLoaded에서 init) -->
+  <script src="js/main.js"></script>
+  <script src="js/motion.js"></script>
+  <script src="js/titration.js"></script>
+  <script src="js/vi.js"></script>
+  <script src="js/custom.js"></script>
+</body>
+</html>
