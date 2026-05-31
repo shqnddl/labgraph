@@ -179,6 +179,40 @@
     },
     clearPresetIfManual() { if (this.presetOn) { this.presetOn = false; this.updatePresetButton(); } },
 
+    // 구간 데이터 붙여넣기 파서: "타입, 시간, v0, a" (한 줄당 한 구간)
+    parseSegments(text) {
+      const TYPE_MAP = {
+        '정지': 'rest', 'rest': 'rest',
+        '등속': 'uniform', 'uniform': 'uniform',
+        '등가속도': 'accel', '등가속': 'accel', 'accel': 'accel', 'acceleration': 'accel',
+      };
+      const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l !== '');
+      const segs = []; let id = 0;
+      for (const line of lines) {
+        const p = line.split(/[\t,;]/).map(s => s.trim()).filter(s => s !== '');
+        if (p.length < 2) continue;
+        const type = TYPE_MAP[p[0].toLowerCase()] || TYPE_MAP[p[0]];
+        if (!type) continue; // 타입 인식 실패(헤더 등)는 건너뜀
+        const duration = parseFloat(p[1]); if (isNaN(duration)) continue;
+        let v0 = parseFloat(p[2]); if (isNaN(v0)) v0 = 0;
+        let a = parseFloat(p[3]); if (isNaN(a)) a = 0;
+        if (type === 'rest') { v0 = 0; a = 0; }
+        if (type === 'uniform') { a = 0; }
+        segs.push({ id: ++id, type, duration, v0, a });
+      }
+      return segs;
+    },
+    applyCSV() {
+      const text = document.getElementById('motion-csv').value.trim();
+      if (!text) return;
+      const segs = this.parseSegments(text);
+      if (!segs.length) return;
+      this.segments = segs;
+      this.segCounter = segs.length;
+      this.presetOn = false; this.updatePresetButton();
+      this.renderSegments(); this.update();
+    },
+
     /* ---- 프리셋 테마(스타일) 적용 ---- */
     applyTheme(p) {
       if (!this.charts) return;
@@ -225,6 +259,12 @@
         this.updatePresetButton(); this.renderSegments(); this.update();
       });
       document.getElementById('motion-vx0').addEventListener('input', () => this.update());
+      document.getElementById('motion-csv-apply').addEventListener('click', () => this.applyCSV());
+      // 엑셀 통째 붙여넣기 시 즉시 적용
+      document.getElementById('motion-csv').addEventListener('paste', (e) => {
+        const txt = (e.clipboardData || window.clipboardData).getData('text');
+        if (txt) { e.preventDefault(); const el = document.getElementById('motion-csv'); el.value = txt; this.applyCSV(); }
+      });
 
       this.initCharts();
       this.updatePresetButton();
@@ -239,6 +279,7 @@
     reset() {
       this.segments = this.defaults(); this.segCounter = 2; this.presetOn = false;
       document.getElementById('motion-vx0').value = '5';
+      document.getElementById('motion-csv').value = '';
       this.updatePresetButton(); this.renderSegments(); this.update();
     },
   };
