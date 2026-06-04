@@ -79,3 +79,26 @@ body.theme-ieee {
 
 /* 프리셋 선택 칩 활성 표시 */
 .preset-chip.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+
+/* ===========================================================
+ * 모바일 반응형 보강
+ * =========================================================== */
+/* 탭 가로 스크롤 시 스크롤바 숨김 */
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* 좁은 화면에서 차트 높이를 약간 낮춰 한 화면에 더 잘 들어오게 */
+@media (max-width: 640px) {
+  .chart-box.h-\[400px\] { height: 300px; }
+  .chart-box.h-\[380px\] { height: 290px; }
+  .chart-box.h-\[360px\] { height: 280px; }
+  .chart-box.h-\[240px\] { height: 200px; }
+  .chart-box.h-\[200px\] { height: 180px; }
+  /* 사이드바 구간 리스트가 모바일에서 과하게 길어지지 않도록 */
+  #segment-list { max-height: 320px; }
+}
+
+/* iOS 사파리: 입력 폼 확대(zoom) 방지를 위해 폰트 16px 이상 권장 영역 */
+@media (max-width: 640px) {
+  .field-input { font-size: 16px; }
+}

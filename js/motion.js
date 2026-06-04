@@ -10,6 +10,7 @@
   const Motion = {
     charts: null,
     inited: false,
+    rendered: false,
     segCounter: 2,
     presetOn: false,
     segments: [],
@@ -119,8 +120,18 @@
       if (hi - lo < 1e-6) { lo -= 1; hi += 1; } else { const pad = (hi - lo) * 0.1; lo -= pad; hi += pad; }
       ch.options.scales.y.suggestedMin = lo; ch.options.scales.y.suggestedMax = hi;
     },
+    clearCharts() {
+      const c = this.charts; if (!c) return;
+      Object.values(c).forEach((ch) => {
+        ch.data.datasets.forEach(ds => { ds.data = []; if (ds.pointBackgroundColor) ds.pointBackgroundColor = []; });
+        ch.options.scales.x.max = undefined;
+        ch.options.scales.y.suggestedMin = undefined; ch.options.scales.y.suggestedMax = undefined;
+        ch.update('none');
+      });
+    },
     update() {
       const c = this.charts; if (!c) return;
+      if (!this.rendered) { this.clearCharts(); return; }
       const segs = this.compute(this.segments);
       const total = segs.length ? segs[segs.length - 1].tEnd : 0;
       const tMax = total > 0 ? total : 1;
@@ -210,6 +221,7 @@
       this.segments = segs;
       this.segCounter = segs.length;
       this.presetOn = false; this.updatePresetButton();
+      this.rendered = true;
       this.renderSegments(); this.update();
     },
 
@@ -256,9 +268,13 @@
       document.getElementById('motion-preset').addEventListener('click', () => {
         if (!this.presetOn) { this.segments = this.projectile(); this.segCounter = 4; this.presetOn = true; }
         else { this.segments = this.defaults(); this.segCounter = 2; this.presetOn = false; }
+        this.rendered = true;
         this.updatePresetButton(); this.renderSegments(); this.update();
       });
-      document.getElementById('motion-vx0').addEventListener('input', () => this.update());
+      document.getElementById('motion-generate').addEventListener('click', () => {
+        this.rendered = true; this.update();
+      });
+      document.getElementById('motion-vx0').addEventListener('input', () => { if (this.rendered) this.update(); });
       document.getElementById('motion-csv-apply').addEventListener('click', () => this.applyCSV());
       // 엑셀 통째 붙여넣기 시 즉시 적용
       document.getElementById('motion-csv').addEventListener('paste', (e) => {
@@ -278,6 +294,7 @@
     },
     reset() {
       this.segments = this.defaults(); this.segCounter = 2; this.presetOn = false;
+      this.rendered = false;
       document.getElementById('motion-vx0').value = '5';
       document.getElementById('motion-csv').value = '';
       this.updatePresetButton(); this.renderSegments(); this.update();

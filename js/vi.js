@@ -8,7 +8,7 @@
   const VT = 0.02585;
 
   const VI = {
-    inited: false, preset: 'resistor', fitModel: 'linear', chart: null,
+    inited: false, preset: 'resistor', fitModel: 'linear', chart: null, rendered: false,
     data: {
       resistor: [{ v: 0, i: 0.2 }, { v: 1, i: 6.5 }, { v: 2, i: 13.6 }, { v: 3, i: 19.8 }, { v: 4, i: 27.1 }, { v: 5, i: 33.0 }],
       diode: [{ v: 0.30, i: 0.0007 }, { v: 0.45, i: 0.015 }, { v: 0.55, i: 0.14 }, { v: 0.60, i: 0.39 },
@@ -48,8 +48,16 @@
       });
     },
 
+    clearCharts() {
+      if (!this.chart) return;
+      this.chart.data.datasets.forEach(ds => { ds.data = []; });
+      this.chart.options.scales.x.max = undefined; this.chart.options.scales.y.suggestedMax = undefined;
+      this.chart.update('none');
+      document.getElementById('vi-box').innerHTML = '';
+    },
     update() {
       if (!this.inited) return;
+      if (!this.rendered) { this.clearCharts(); return; }
       const valid = this.cur().filter(d => !isNaN(d.v) && !isNaN(d.i));
       const pts = valid.map(d => ({ x: d.v, y: d.i }));
       this.chart.data.datasets[0].data = pts;
@@ -125,6 +133,7 @@
       document.getElementById('vi-desc').textContent = this.DESC[preset];
       // 회귀 모델 선택칸은 저항(옴성)일 때만 의미가 있음
       document.getElementById('vi-fit-wrap').classList.toggle('hidden', preset !== 'resistor');
+      this.rendered = false; // 소자 전환 시 빈 차트 → 적용/생성 버튼으로 렌더
       this.renderGrid(); this.update();
     },
 
@@ -134,18 +143,19 @@
     init() {
       document.querySelectorAll('.vi-preset').forEach(b => b.addEventListener('click', () => this.setPreset(b.dataset.preset)));
       const fit = document.getElementById('vi-fit');
-      if (fit) fit.addEventListener('change', (e) => { this.fitModel = e.target.value; this.update(); });
+      if (fit) fit.addEventListener('change', (e) => { this.fitModel = e.target.value; if (this.rendered) this.update(); });
       const t = document.getElementById('vi-table');
       t.addEventListener('input', (e) => {
         const el = e.target; if (el.dataset.field == null) return;
         const i = +el.dataset.row; const d = this.cur()[i]; if (!d) return;
-        d[el.dataset.field] = parseFloat(el.value); this.update();
+        d[el.dataset.field] = parseFloat(el.value); if (this.rendered) this.update();
       });
       t.addEventListener('click', (e) => {
         const b = e.target.closest('[data-action="vi-del"]'); if (!b) return;
-        this.cur().splice(+b.dataset.row, 1); this.renderGrid(); this.update();
+        this.cur().splice(+b.dataset.row, 1); this.renderGrid(); if (this.rendered) this.update();
       });
       document.getElementById('vi-add-row').addEventListener('click', () => { this.cur().push({ v: NaN, i: NaN }); this.renderGrid(); });
+      document.getElementById('vi-generate').addEventListener('click', () => { this.rendered = true; this.update(); });
       document.getElementById('vi-csv-apply').addEventListener('click', () => {
         const text = document.getElementById('vi-csv').value.trim(); if (!text) return;
         const rows = [];
@@ -153,7 +163,7 @@
           const p = line.split(/[,\t; ]+/).map(s => s.trim()).filter(s => s !== '');
           if (p.length >= 2) { const v = parseFloat(p[0]), i = parseFloat(p[1]); if (!isNaN(v) && !isNaN(i)) rows.push({ v, i }); }
         });
-        if (rows.length) { this.data[this.preset] = rows; this.renderGrid(); this.update(); }
+        if (rows.length) { this.data[this.preset] = rows; this.rendered = true; this.renderGrid(); this.update(); }
       });
 
       this.initChart(); this.inited = true; this.setPreset('resistor');

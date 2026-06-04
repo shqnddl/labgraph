@@ -17,7 +17,7 @@
   };
 
   const Custom = {
-    inited: false, chart: null, chartType: null,
+    inited: false, rendered: false, chart: null, chartType: null,
     parsed: { headers: [], rows: [] },
 
     // 엑셀/구글시트 붙여넣기 파서 (탭·콤마·세미콜론 모두 지원, 헤더 자동 인식)
@@ -70,8 +70,16 @@
       return Math.sqrt(v.reduce((s, x) => s + (x - m) ** 2, 0) / (v.length - 1));
     },
 
+    clearCharts() {
+      if (!this.chart) return;
+      this.chart.data.datasets = [];
+      if (this.chart.data.labels) this.chart.data.labels = [];
+      this.chart.update('none');
+      document.getElementById('cu-fitbox').classList.add('hidden');
+    },
     update() {
       if (!this.inited) return;
+      if (!this.rendered) { this.clearCharts(); return; }
       const type = document.getElementById('cu-type').value;
       if (type !== this.chartType) this.buildChart(type);
       const p = LG.preset();
@@ -181,7 +189,7 @@
         document.getElementById('cu-yunit').value = pr.yunit;
       }
       this.parsed = this.parse(dataEl.value);
-      this.update();
+      this.update(); // rendered=false면 빈 차트 유지 (사용자가 "데이터 적용"을 눌러야 그려짐)
     },
 
     applyTheme() { if (this.chart) { this.buildChart(document.getElementById('cu-type').value); this.update(); } },
@@ -189,17 +197,17 @@
 
     init() {
       ['cu-xname', 'cu-xunit', 'cu-yname', 'cu-yunit', 'cu-title'].forEach(id =>
-        document.getElementById(id).addEventListener('input', () => this.update()));
-      document.getElementById('cu-type').addEventListener('change', () => this.update());
-      document.getElementById('cu-fit').addEventListener('change', () => this.update());
-      document.getElementById('cu-fit-on').addEventListener('change', () => this.update());
-      document.getElementById('cu-errbar').addEventListener('change', () => this.update());
-      document.getElementById('cu-errmode').addEventListener('change', () => this.update());
+        document.getElementById(id).addEventListener('input', () => { if (this.rendered) this.update(); }));
+      document.getElementById('cu-type').addEventListener('change', () => { if (this.rendered) this.update(); });
+      document.getElementById('cu-fit').addEventListener('change', () => { if (this.rendered) this.update(); });
+      document.getElementById('cu-fit-on').addEventListener('change', () => { if (this.rendered) this.update(); });
+      document.getElementById('cu-errbar').addEventListener('change', () => { if (this.rendered) this.update(); });
+      document.getElementById('cu-errmode').addEventListener('change', () => { if (this.rendered) this.update(); });
       document.getElementById('cu-preset').addEventListener('change', (e) => this.applyPreset(e.target.value));
       document.getElementById('cu-apply').addEventListener('click', () => {
         this.parsed = this.parse(document.getElementById('cu-data').value);
         document.getElementById('cu-preset').value = 'custom';
-        this.update();
+        this.rendered = true; this.update();
       });
       // 엑셀 붙여넣기 최적화: paste 이벤트에서 즉시 파싱·렌더 (탭 구조 보존)
       document.getElementById('cu-data').addEventListener('paste', (e) => {
@@ -211,7 +219,7 @@
           el.value = txt;
           this.parsed = this.parse(txt);
           document.getElementById('cu-preset').value = 'custom';
-          this.update();
+          this.rendered = true; this.update();
         }
       });
 
@@ -232,6 +240,7 @@
       document.getElementById('cu-yname').value = '전압'; document.getElementById('cu-yunit').value = 'V';
       document.getElementById('cu-errbar').checked = false;
       document.getElementById('cu-fit-on').checked = false;
+      this.rendered = false;
       this.parsed = this.parse(DEFAULT_TEXT); this.update();
     },
   };

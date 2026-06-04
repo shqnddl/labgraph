@@ -9,7 +9,7 @@
   const KIND_KO = { strong_acid: '강산', weak_acid: '약산', strong_base: '강염기', weak_base: '약염기' };
 
   const Titration = {
-    inited: false, mode: 'sim', showDeriv: false,
+    inited: false, mode: 'sim', showDeriv: false, rendered: false,
     phChart: null, derivChart: null,
     analyte: { kind: 'weak_acid', name: 'CH₃COOH', conc: 0.1, vol: 25, n: 1, pK: 4.76 },
     titrant: { kind: 'strong_base', name: 'NaOH', conc: 0.1, vol: 50, n: 1, pK: 0 },
@@ -145,8 +145,17 @@
       });
     },
 
+    clearCharts() {
+      if (!this.phChart) return;
+      this.phChart.data.datasets[0].data = []; this.phChart.$equivalence = null;
+      this.phChart.options.scales.x.max = undefined; this.phChart.update('none');
+      this.derivChart.data.datasets[0].data = []; this.derivChart.$equivalence = null;
+      this.derivChart.options.scales.x.max = undefined; this.derivChart.update('none');
+      document.getElementById('titr-summary').innerHTML = '';
+    },
     update() {
       if (!this.inited) return;
+      if (!this.rendered) { this.clearCharts(); return; }
       const pts = this.points();
       const xmax = pts.length ? Math.max(...pts.map(p => p.x)) : 10;
       const eq = this.findEquivalence(pts);
@@ -239,6 +248,7 @@
       });
       document.getElementById('sim-panel').classList.toggle('hidden', mode !== 'sim');
       document.getElementById('exp-panel').classList.toggle('hidden', mode !== 'exp');
+      this.rendered = false; // 모드 전환 시 빈 차트로 → 각 모드의 적용/생성 버튼으로 렌더
       this.update();
     },
     applyCSV() {
@@ -248,7 +258,7 @@
         const p = line.split(/[,\t; ]+/).map(s => s.trim()).filter(s => s !== '');
         if (p.length >= 2) { const v = parseFloat(p[0]), pH = parseFloat(p[1]); if (!isNaN(v) && !isNaN(pH)) rows.push({ v, pH }); }
       });
-      if (rows.length) { this.exp = rows; this.renderExp(); this.update(); }
+      if (rows.length) { this.exp = rows; this.rendered = true; this.renderExp(); this.update(); }
     },
 
     applyTheme(p) {
@@ -266,24 +276,27 @@
         if (!role || !field || field === 'kind') return;
         const sub = (role === 'analyte') ? this.analyte : this.titrant;
         sub[field] = (el.type === 'number') ? parseFloat(el.value) : el.value;
-        this.update();
+        if (this.rendered) this.update();
       });
       simInputs.addEventListener('change', (e) => {
         const el = e.target; if (el.dataset.field !== 'kind') return;
         const sub = (el.dataset.sub === 'analyte') ? this.analyte : this.titrant;
         sub.kind = el.value;
         if ((sub.kind === 'weak_acid' || sub.kind === 'weak_base') && !(sub.pK > 0)) sub.pK = (sub.kind === 'weak_acid') ? 4.76 : 4.75;
-        this.renderSim(); this.update();
+        this.renderSim(); if (this.rendered) this.update();
+      });
+      document.getElementById('sim-generate').addEventListener('click', () => {
+        this.rendered = true; this.update();
       });
       const expTable = document.getElementById('exp-table');
       expTable.addEventListener('input', (e) => {
         const el = e.target; if (el.dataset.field == null) return;
         const i = +el.dataset.row; if (!this.exp[i]) return;
-        this.exp[i][el.dataset.field] = parseFloat(el.value); this.update();
+        this.exp[i][el.dataset.field] = parseFloat(el.value); if (this.rendered) this.update();
       });
       expTable.addEventListener('click', (e) => {
         const b = e.target.closest('[data-action="del-row"]'); if (!b) return;
-        this.exp.splice(+b.dataset.row, 1); this.renderExp(); this.update();
+        this.exp.splice(+b.dataset.row, 1); this.renderExp(); if (this.rendered) this.update();
       });
       document.getElementById('add-row').addEventListener('click', () => { this.exp.push({ v: NaN, pH: NaN }); this.renderExp(); });
       document.getElementById('csv-apply').addEventListener('click', () => this.applyCSV());
